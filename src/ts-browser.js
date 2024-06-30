@@ -93,24 +93,25 @@ const TS_SCRIPT_TARGET_ES2018 = 5;
 const LoadRootModule = async ({
     rootModuleUrl,
     compilerOptions = {},
+    code = undefined
 }) => {
     compilerOptions.target = compilerOptions.target || TS_SCRIPT_TARGET_ES2018;
     const workerManager = WorkerManager({compilerOptions});
 
     const cachedFiles = {};
     const urlToWhenFileData = {};
-    const getFileData = url => {
+    const getFileData = (url, code) => {
         if (!urlToWhenFileData[url]) {
-            urlToWhenFileData[url] = workerManager.fetchModuleData(url);
+            urlToWhenFileData[url] = workerManager.fetchModuleData(url, code);
         }
         return urlToWhenFileData[url];
     };
 
     const dynamicImportUrls = new Set();
-    const fetchDependencyFiles = async (entryUrl) => {
+    const fetchDependencyFiles = async (entryUrl, code) => {
         dynamicImportUrls.add(entryUrl);
         const urlToPromise = {};
-        urlToPromise[entryUrl] = getFileData(entryUrl);
+        urlToPromise[entryUrl] = getFileData(entryUrl, code);
         let promises;
         let safeguard = 10000;
         while ((promises = Object.values(urlToPromise)).length > 0) {
@@ -137,10 +138,10 @@ const LoadRootModule = async ({
         return cachedFiles;
     };
 
-    const importDynamic = async (relUrl, baseUrl) => {
+    const importDynamic = async (relUrl, baseUrl, code) => {
         try {
             const url = addPathToUrl(relUrl, baseUrl);
-            await fetchDependencyFiles(url);
+            await fetchDependencyFiles(url, code);
             return await loadModuleFromFiles(url, cachedFiles);
         } catch (exc) {
             console.warn('Resetting transpilation cache due to uncaught error');
@@ -151,13 +152,13 @@ const LoadRootModule = async ({
 
     const main = async () => {
         window[IMPORT_DYNAMIC] = importDynamic;
-        return importDynamic(rootModuleUrl, './');
+        return importDynamic(rootModuleUrl, './', code);
     };
 
     return main();
 };
 
 /** @return {Promise<any>} */
-export const loadModule = async (absUrl, compilerOptions = {}) => {
-    return LoadRootModule({rootModuleUrl: absUrl, compilerOptions});
+export const loadModule = async (absUrl, compilerOptions = {}, code = undefined) => {
+    return LoadRootModule({rootModuleUrl: absUrl, compilerOptions, code});
 };

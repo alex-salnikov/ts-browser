@@ -194,7 +194,14 @@ function tryFetchModuleSrcWithExt(fullUrl) {
  * @param {string} url
  * @param {boolean} jsx
  */
-function tryFetchModuleSrcExtOrNot(url, jsx) {
+function tryFetchModuleSrcExtOrNot(url, jsx, code) {
+    if(code !== undefined) {
+        //return {fullUrl: url, tsCode: code}
+        return new Promise(function(resolve) {
+            resolve({fullUrl: url, tsCode: code});
+        })
+    }
+    
     // typescript does not allow specifying extension in the import, but react
     // files may have .tsx extension rather than .ts, so have to check both
     const urlOptions = [];
@@ -237,8 +244,8 @@ function tryFetchModuleSrcExtOrNot(url, jsx) {
 }
 
 const WorkerManager = ({compilerOptions}) => {
-    const fetchModuleSrc = (url) => {
-        return tryFetchModuleSrcExtOrNot(url, compilerOptions.jsx);
+    const fetchModuleSrc = (url, code) => {
+        return tryFetchModuleSrcExtOrNot(url, compilerOptions.jsx, code);
     };
 
     const parseInWorker = async ({url, fullUrl, tsCode}) => {
@@ -276,7 +283,7 @@ const WorkerManager = ({compilerOptions}) => {
     };
 
     return {
-        fetchModuleData: url => fetchModuleSrc(url)
+        fetchModuleData: (url, code) => fetchModuleSrc(url, code)
             .then(({fullUrl, tsCode}) => parseInWorker({url, fullUrl, tsCode})),
     };
 };
